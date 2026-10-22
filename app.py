@@ -5,10 +5,19 @@ Lancer :  streamlit run app.py
 Tout l'état du visiteur vit dans st.session_state : il est propre à sa visite
 et disparaît à la fermeture de la page. Rien n'est écrit sur le disque.
 """
+from urllib.parse import quote
+
 import streamlit as st
 
 import demo_portail as dp
 import messages_portail as mp
+
+# Votre numéro WhatsApp au format international, sans + ni espaces (ex. "2126XXXXXXXX").
+# Tant qu'il est vide, le bouton « Essayer avec vos propres dossiers » n'est pas affiché.
+NUMERO_WHATSAPP = ""
+
+# Lien placé dans le message de bilan (ici, la démonstration elle-même).
+LIEN_SUIVI = "https://bmportail.streamlit.app/"
 
 st.set_page_config(
     page_title="Mieux communiquer, mieux avancer",
@@ -59,6 +68,74 @@ def recommencer():
 
 
 # ---------------------------------------------------------------------------
+# Bilan PDF (généré en mémoire, jamais écrit sur le disque)
+# ---------------------------------------------------------------------------
+def _latin(texte):
+    """fpdf2 (polices de base) n'accepte que le latin-1 : on adoucit le reste."""
+    texte = (
+        str(texte)
+        .replace("’", "'")
+        .replace("‘", "'")
+        .replace("–", "-")
+        .replace("—", "-")
+        .replace("·", "-")
+        .replace("…", "...")
+    )
+    return texte.encode("latin-1", "replace").decode("latin-1")
+
+
+def bilan_pdf(infos, r):
+    """Retourne les octets du PDF de bilan, ou None si fpdf2 n'est pas installé."""
+    try:
+        from fpdf import FPDF
+    except ImportError:
+        return None
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 10, _latin("Bilan du dossier"), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 12)
+    pdf.cell(0, 8, _latin(infos["sujet"]), new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(2)
+    pdf.cell(
+        0,
+        8,
+        _latin(f"{len(r['validees'])} pièces sur {r['total']} - {r['pourcentage']} %"),
+        new_x="LMARGIN",
+        new_y="NEXT",
+    )
+    pdf.ln(4)
+
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, _latin("Pièces reçues"), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 11)
+    recues = [p for p in r["pieces"] if p["ok"]]
+    if recues:
+        for p in recues:
+            pdf.cell(0, 7, _latin(f"- {p['numero']}. {p['libelle']}"), new_x="LMARGIN", new_y="NEXT")
+    else:
+        pdf.cell(0, 7, _latin("Aucune pièce reçue pour l'instant."), new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(3)
+
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, _latin("Pièces manquantes"), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 11)
+    if r["manquantes"]:
+        for p in r["manquantes"]:
+            pdf.cell(0, 7, _latin(f"- {p['numero']}. {p['libelle']}"), new_x="LMARGIN", new_y="NEXT")
+    else:
+        pdf.cell(0, 7, _latin("Dossier complet. Rien ne manque."), new_x="LMARGIN", new_y="NEXT")
+
+    pdf.ln(8)
+    pdf.set_font("Helvetica", "I", 9)
+    pdf.cell(0, 6, _latin("Démonstration : dossier fictif, aucune donnée réelle."), new_x="LMARGIN", new_y="NEXT")
+    return bytes(pdf.output())
+
+
+# ---------------------------------------------------------------------------
 # Écran 1 — Accueil
 # ---------------------------------------------------------------------------
 def ecran_accueil():
@@ -90,13 +167,14 @@ def ecran_retrouver():
         key="saisie",
         placeholder="Tapez 2 chiffres, puis Entrée",
     )
+    st.caption("Tapez deux chiffres, puis cliquez sur « Dossier de démonstration ».")
     st.caption("Dossiers de démonstration : 4402 et 9941.")
 
     suivi = st.session_state.suivi
     resultats = dp.rechercher(suivi, saisie)
     for id_dos in resultats:
         st.button(
-            f"{id_dos} · {suivi[id_dos]['sujet']}",
+            f"Dossier de démonstration {id_dos} · {suivi[id_dos]['sujet']}",
             key=f"ouvrir_{id_dos}",
             use_container_width=True,
             on_click=aller,
@@ -163,6 +241,14 @@ def ecran_fiche():
         st.info(mp.phrase_vocale(libelles_manquants, r["pourcentage"]))
 
     st.divider()
+    st.button(
+        "Bilan et suivi client →",
+        key="vers_bilan",
+        type="primary",
+        use_container_width=True,
+        on_click=aller,
+        args=("bilan",),
+    )
     st.button("← Autre dossier", key="retour_recherche", on_click=aller, args=("retrouver",))
     st.button("Recommencer la démonstration", key="reset", on_click=recommencer)
     st.caption(
@@ -172,7 +258,92 @@ def ecran_fiche():
 
 
 # ---------------------------------------------------------------------------
+# Écran 5 — Bilan par WhatsApp, aperçu du suivi client, sortie vers WhatsApp
+# ---------------------------------------------------------------------------
+def ecran_bilan():
+    suivi = st.session_state.suivi
+    id_dos = st.session_state.dossier
+    if id_dos not in suivi:
+        aller("retrouver")
+        st.rerun()
+
+    infos = suivi[id_dos]
+    code_obj = next(iter(infos["objectifs_actifs"]))
+    r = dp.resume_dossier(suivi, id_dos, code_obj)
+    libelles_manquants = [p["libelle"] for p in r["manquantes"]]
+
+    st.subheader("Bilan et suivi")
+
+    # --- 1. Le bilan envoyé par WhatsApp ------------------------------------
+    st.markdown("**Envoyer le bilan par WhatsApp**")
+    if r["manquantes"]:
+        corps = (
+            f"Bonjour, voici le point sur votre dossier « {infos['sujet']} » : "
+            f"il est complet à {r['pourcentage']} %. "
+            "Il nous manque : " + ", ".join(libelles_manquants) + ".\n\n"
+        )
+    else:
+        corps = (
+            f"Bonjour, bonne nouvelle : votre dossier « {infos['sujet']} » est complet. "
+            "Rien ne manque.\n\n"
+        )
+    corps += f"Vous pouvez télécharger votre bilan en PDF ici : {LIEN_SUIVI}"
+    message = st.text_area(
+        "Message prêt à envoyer",
+        value=corps,
+        height=220,
+        key=f"msg_bilan_{id_dos}_{len(libelles_manquants)}",
+    )
+    st.link_button("Envoyer par WhatsApp", mp.lien_whatsapp(message), use_container_width=True)
+    st.caption("Dans l’usage réel, ce lien ouvre la page de suivi propre à votre client.")
+    pdf = bilan_pdf(infos, r)
+    if pdf:
+        st.download_button(
+            "Voir le bilan en PDF",
+            data=pdf,
+            file_name=f"bilan_{id_dos}.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+        )
+
+    # --- 2. Ce que voit le client final ------------------------------------
+    st.divider()
+    st.markdown("**Ce que voit votre client**")
+    st.caption("Un lien de suivi, sur son téléphone, sans rien installer.")
+    with st.container(border=True):
+        st.markdown(f"**{infos['sujet']}**")
+        st.progress(
+            r["pourcentage"] / 100,
+            text=f"Votre dossier est complet à {r['pourcentage']} %",
+        )
+        if r["manquantes"]:
+            st.markdown("**Il reste à nous transmettre :**")
+            for p in r["manquantes"]:
+                st.markdown(f"○ &nbsp; {p['libelle']}")
+        else:
+            st.markdown("✓ &nbsp; Tout est reçu. Merci !")
+
+    # --- 3. Sortie vers votre WhatsApp -------------------------------------
+    if NUMERO_WHATSAPP:
+        st.divider()
+        texte = quote("Bonjour, j’aimerais essayer l’outil avec mes propres dossiers.")
+        st.link_button(
+            "Essayer avec vos propres dossiers",
+            f"https://wa.me/{725633569}?text={texte}",
+            type="primary",
+            use_container_width=True,
+        )
+
+    st.divider()
+    st.button("← Retour au dossier", key="retour_fiche", on_click=aller, args=("fiche",))
+    st.button("Recommencer la démonstration", key="reset_bilan", on_click=recommencer)
+
+
+# ---------------------------------------------------------------------------
 init()
-{"accueil": ecran_accueil, "retrouver": ecran_retrouver, "fiche": ecran_fiche}[
-    st.session_state.ecran
-]()
+{
+    "accueil": ecran_accueil,
+    "retrouver": ecran_retrouver,
+    "fiche": ecran_fiche,
+    "bilan": ecran_bilan,
+}[st.session_state.ecran]()
