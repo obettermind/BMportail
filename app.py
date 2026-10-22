@@ -19,6 +19,10 @@ NUMERO_WHATSAPP = ""
 # Lien placé dans le message de bilan (ici, la démonstration elle-même).
 LIEN_SUIVI = "https://bmportail.streamlit.app/"
 
+# Marque et contact affichés sur l'accueil.
+NOM_MARQUE = "Better Mind"
+EMAIL_CONTACT = "obettermind@gmail.com"
+
 st.set_page_config(
     page_title="Mieux communiquer, mieux avancer",
     page_icon="✦",
@@ -34,6 +38,10 @@ st.markdown(
     .block-container {max-width: 560px; padding-top: 1.5rem; padding-bottom: 3rem;}
     .scene {font-style: italic; opacity: .8; line-height: 1.55; margin: .5rem 0 1rem 0;}
     .stButton > button, .stLinkButton > a {min-height: 3rem;}
+    .marque {display: flex; align-items: center; gap: .6rem; margin-bottom: 1.2rem;}
+    .marque span {font-size: 1.15rem; letter-spacing: .06em; font-weight: 600;}
+    .contact {text-align: center; opacity: .75; font-size: .9rem; margin-top: 1.5rem;}
+    .contact a {color: inherit;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -138,7 +146,19 @@ def bilan_pdf(infos, r):
 # ---------------------------------------------------------------------------
 # Écran 1 — Accueil
 # ---------------------------------------------------------------------------
+LOGO_SVG = (
+    "<svg width='38' height='38' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'>"
+    "<circle cx='20' cy='20' r='17' fill='none' stroke='#7FA8E8' stroke-width='2'/>"
+    "<path d='M20 9 L23 17 L31 20 L23 23 L20 31 L17 23 L9 20 L17 17 Z' fill='#7FA8E8'/>"
+    "</svg>"
+)
+
+
 def ecran_accueil():
+    st.markdown(
+        f"<div class='marque'>{LOGO_SVG}<span>{NOM_MARQUE}</span></div>",
+        unsafe_allow_html=True,
+    )
     st.title("Mieux communiquer, mieux avancer.")
     st.write(
         "Des outils simples, faits pour votre travail, par des gens qui parlent "
@@ -149,6 +169,11 @@ def ecran_accueil():
     st.caption(
         "Démonstration : dossiers fictifs, rien n’est conservé. "
         "Chaque ouverture présente une situation différente."
+    )
+    st.markdown(
+        f"<p class='contact'>{NOM_MARQUE} · "
+        f"<a href='mailto:{EMAIL_CONTACT}'>{EMAIL_CONTACT}</a></p>",
+        unsafe_allow_html=True,
     )
 
 
@@ -329,7 +354,7 @@ def ecran_bilan():
         texte = quote("Bonjour, j’aimerais essayer l’outil avec mes propres dossiers.")
         st.link_button(
             "Essayer avec vos propres dossiers",
-            f"https://wa.me/{725633569}?text={texte}",
+            f"https://wa.me/{NUMERO_WHATSAPP}?text={texte}",
             type="primary",
             use_container_width=True,
         )
