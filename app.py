@@ -65,7 +65,7 @@ def ecran_accueil():
     st.title("Mieux communiquer, mieux avancer.")
     st.write(
         "Des outils simples, faits pour votre travail, par des gens qui parlent "
-        "le langage des innovations les plus modernes, pour que vous n’ayez pas à le parler."
+        "le langage des innovations les plus modernes, pour vous aider à y accéder aisément."
     )
     st.markdown("*Le vrai luxe, c’est un travail sans accroc.*")
     st.button("Essayer", type="primary", use_container_width=True, on_click=aller, args=("retrouver",))
