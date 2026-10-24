@@ -274,9 +274,11 @@ def ecran_retrouver():
 # ---------------------------------------------------------------------------
 # Écrans 3 et 4 — Fiche dossier, dépôt d'une pièce, relance
 # ---------------------------------------------------------------------------
+
 def ecran_fiche():
     suivi = st.session_state.suivi
     id_dos = st.session_state.dossier
+
     if id_dos not in suivi:
         aller("retrouver")
         st.rerun()
@@ -285,18 +287,32 @@ def ecran_fiche():
     code_obj = next(iter(infos["objectifs_actifs"]))
     r = dp.resume_dossier(suivi, id_dos, code_obj)
 
-    st.subheader(infos["sujet"])
+    st.subheader("Vérifier le dossier")
+    st.markdown(f"**{infos['sujet']}**")
+
     st.progress(
         r["pourcentage"] / 100,
-        text=f"{len(r['validees'])} pièces sur {r['total']} · {r['pourcentage']} %",
+        text=f"{len(r['validees'])} pièces sur {r['total']} · "
+             f"{r['pourcentage']} %",
     )
 
-    # Pièces : validées en lignes simples, manquantes en boutons « Déposer »
-    for p in r["pieces"]:
-        if p["ok"]:
+    st.divider()
+    st.markdown("**Pièces reçues**")
+    recues = [p for p in r["pieces"] if p["ok"]]
+
+    if recues:
+        for p in recues:
             st.markdown(f"✓ &nbsp; {p['numero']}. {p['libelle']}")
+    else:
+        st.caption("Aucune pièce reçue pour le moment.")
+
+    st.divider()
+    st.markdown("**Pièces à fournir**")
+
     if r["manquantes"]:
-        st.markdown("**Il manque :**")
+        st.caption(
+            "Sélectionnez une pièce lorsque vous souhaitez simuler son dépôt."
+        )
         for p in r["manquantes"]:
             st.button(
                 f"Déposer — {p['numero']}. {p['libelle']}",
@@ -306,40 +322,120 @@ def ecran_fiche():
                 args=(id_dos, code_obj, p["code"]),
             )
     else:
-        st.success("Dossier complet. Rien ne manque, rien à relancer.")
-
-    libelles_manquants = [p["libelle"] for p in r["manquantes"]]
-
-    # Relance en un clic + phrase pour un message vocal
-    if r["manquantes"]:
-        st.divider()
-        st.markdown("**Relancer le client**")
-        message = st.text_area(
-            "Message prêt à envoyer",
-            value=mp.message_relance(infos["sujet"], libelles_manquants, r["pourcentage"]),
-            height=260,
-            key=f"msg_{id_dos}_{len(libelles_manquants)}",  # se rafraîchit quand l'état change
-        )
-        st.link_button("Envoyer par WhatsApp", mp.lien_whatsapp(message), use_container_width=True)
-
-        st.markdown("**À dire dans un message vocal**")
-        st.info(mp.phrase_vocale(libelles_manquants, r["pourcentage"]))
+        st.success("Dossier complet. Rien ne manque.")
 
     st.divider()
     st.button(
-        "Bilan et suivi client →",
+        "Actions et contact client →",
+        key="vers_actions",
+        type="primary",
+        use_container_width=True,
+        on_click=aller,
+        args=("actions",),
+    )
+    st.button(
+        "← Autre dossier",
+        key="retour_recherche",
+        on_click=aller,
+        args=("retrouver",),
+    )
+    st.button(
+        "Recommencer la démonstration",
+        key="reset",
+        on_click=recommencer,
+    )
+
+
+
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+
+def ecran_actions():
+    suivi = st.session_state.suivi
+    id_dos = st.session_state.dossier
+
+    if id_dos not in suivi:
+        aller("retrouver")
+        st.rerun()
+
+    infos = suivi[id_dos]
+    code_obj = next(iter(infos["objectifs_actifs"]))
+    r = dp.resume_dossier(suivi, id_dos, code_obj)
+    libelles_manquants = [p["libelle"] for p in r["manquantes"]]
+
+    st.subheader("Actions et contact client")
+    st.markdown(f"**{infos['sujet']}**")
+
+    if not r["manquantes"]:
+        st.success(
+            "Le dossier est complet. Aucune relance n'est nécessaire."
+        )
+    else:
+        st.write(
+            f"Le dossier est complet à {r['pourcentage']} %. "
+            f"Il reste {len(r['manquantes'])} pièce(s) à recevoir."
+        )
+
+        st.divider()
+        st.markdown("**Option 1 — Envoyer un message écrit**")
+        st.caption(
+            "Pour préciser les pièces manquantes et transmettre "
+            "une demande claire au client."
+        )
+
+        message = st.text_area(
+            "Message prêt à envoyer",
+            value=mp.message_relance(
+                infos["sujet"],
+                libelles_manquants,
+                r["pourcentage"],
+            ),
+            height=220,
+            key=f"msg_actions_{id_dos}_{len(libelles_manquants)}",
+        )
+
+        st.link_button(
+            "Ouvrir WhatsApp avec ce message",
+            mp.lien_whatsapp(message),
+            use_container_width=True,
+        )
+
+        st.divider()
+        st.markdown("**Option 2 — Préparer une relance vocale**")
+        st.caption(
+            "Pour privilégier un contact plus personnel, "
+            "ou relancer après l'absence de réponse."
+        )
+        st.info(
+            mp.phrase_vocale(
+                libelles_manquants,
+                r["pourcentage"],
+            )
+        )
+        st.caption(
+            "Cette formulation est destinée à être prononcée "
+            "dans un audio WhatsApp. L'enregistrement et l'envoi "
+            "de l'audio se font dans WhatsApp."
+        )
+
+    st.divider()
+    st.button(
+        "Préparer le bilan et le suivi →",
         key="vers_bilan",
         type="primary",
         use_container_width=True,
         on_click=aller,
         args=("bilan",),
     )
-    st.button("← Autre dossier", key="retour_recherche", on_click=aller, args=("retrouver",))
-    st.button("Recommencer la démonstration", key="reset", on_click=recommencer)
-    st.caption(
-        "Chaque démonstration part de données différentes, pour montrer la variété des "
-        "situations possibles : un dossier presque prêt un jour, à moitié rempli un autre."
+    st.button(
+        "← Retour à l'état du dossier",
+        key="retour_fiche_actions",
+        on_click=aller,
+        args=("fiche",),
     )
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -419,16 +515,86 @@ def ecran_bilan():
             use_container_width=True,
         )
 
+
     st.divider()
-    st.button("← Retour au dossier", key="retour_fiche", on_click=aller, args=("fiche",))
-    st.button("Recommencer la démonstration", key="reset_bilan", on_click=recommencer)
+    st.button(
+        "Terminer la démonstration →",
+        key="vers_conclusion",
+        type="primary",
+        use_container_width=True,
+        on_click=aller,
+        args=("conclusion",),
+    )
+    st.button(
+        "← Retour aux actions",
+        key="retour_actions_bilan",
+        on_click=aller,
+        args=("actions",),
+    )
+
 
 
 # ---------------------------------------------------------------------------
+
+
+def ecran_conclusion():
+    st.subheader("Ce que cette démonstration vous apporte")
+
+    st.write(
+        "Un dossier mieux suivi, c'est moins de temps passé à rechercher "
+        "les pièces, une meilleure visibilité sur ce qui manque et des "
+        "relances plus faciles à préparer."
+    )
+
+    st.divider()
+
+    st.markdown("**En pratique, l'outil permet de :**")
+    st.markdown(
+        "- repérer les pièces présentes et celles qui manquent ;\n"
+        "- visualiser rapidement l'état d'avancement du dossier ;\n"
+        "- préparer le contact avec le client ;\n"
+        "- produire un bilan pour faciliter le suivi."
+    )
+
+    st.caption(
+        "Vous venez d'explorer une démonstration avec des données fictives. "
+        "Le fonctionnement réel doit être adapté aux dossiers et aux "
+        "règles de votre organisation."
+    )
+
+    st.divider()
+    st.markdown("**Vous souhaitez étudier une utilisation dans votre activité ?**")
+    st.write(
+        "Contactez Better Mind pour échanger sur vos besoins et "
+        "les possibilités d'adaptation."
+    )
+    st.markdown(f"**Contact :** {EMAIL_CONTACT}")
+
+    st.button(
+        "Recommencer la démonstration",
+        type="primary",
+        use_container_width=True,
+        on_click=recommencer,
+    )
+    st.button(
+        "Retour à l'accueil",
+        on_click=aller,
+        args=("accueil",),
+        use_container_width=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+
 init()
 {
     "accueil": ecran_accueil,
     "retrouver": ecran_retrouver,
     "fiche": ecran_fiche,
+    "actions": ecran_actions,
     "bilan": ecran_bilan,
+    "conclusion": ecran_conclusion,
 }[st.session_state.ecran]()
+
+
+
