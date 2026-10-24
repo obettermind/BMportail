@@ -227,26 +227,34 @@ def ecran_accueil():
 # ---------------------------------------------------------------------------
 # Écran 2 — Retrouver
 # ---------------------------------------------------------------------------
+
 def ecran_retrouver():
     st.markdown(
-        "<p class='scene'>Un mardi, dix heures. Un client appelle pour un dossier ouvert "
-        "il y a trois ans. Vous tapez deux chiffres, et le dossier est là. Le client "
-        "n’a pas eu le temps de sentir l’attente.</p>",
+        "<p class='scene'>Un mardi, à dix heures, un client appelle "
+        "pour un dossier ouvert il y a trois ans. Vous saisissez les "
+        "premiers chiffres de son identifiant : le dossier apparaît "
+        "aussitôt dans la liste. Le client n’a pas eu le temps de "
+        "sentir l’attente.</p>",
         unsafe_allow_html=True,
     )
+
     saisie = st.text_input(
         "Numéro ou nom du dossier",
         key="saisie",
         placeholder="Tapez 2 chiffres, puis Entrée",
     )
-    st.caption("Tapez deux chiffres, puis cliquez sur « Dossier de démonstration ».")
-    st.caption("Dossiers de démonstration : 4402 et 9941.")
+
+    st.caption(
+        "Saisissez 44 ou 99, puis sélectionnez le dossier qui apparaît."
+    )
+    st.caption("Dossiers fictifs : 4402 et 9941.")
 
     suivi = st.session_state.suivi
     resultats = dp.rechercher(suivi, saisie)
     for id_dos in resultats:
         st.button(
-            f"Dossier de démonstration {id_dos} · {suivi[id_dos]['sujet']}",
+            f"Dossier de démonstration {id_dos} · "
+            f"{suivi[id_dos]['sujet']}",
             key=f"ouvrir_{id_dos}",
             use_container_width=True,
             on_click=aller,
@@ -255,7 +263,12 @@ def ecran_retrouver():
     if saisie.strip() and not resultats:
         st.info("Aucun dossier ne correspond. Essayez 44 ou 99.")
 
-    st.button("← Retour", key="retour_accueil", on_click=aller, args=("accueil",))
+    st.button(
+        "← Retour",
+        key="retour_accueil",
+        on_click=aller,
+        args=("accueil",),
+    )
 
 
 # ---------------------------------------------------------------------------
