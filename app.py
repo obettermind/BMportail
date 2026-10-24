@@ -150,6 +150,7 @@ LOGO_SVG = (
     "<svg width='38' height='38' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'>"
     "<circle cx='20' cy='20' r='17' fill='none' stroke='#7FA8E8' stroke-width='2'/>"
     "<path d='M20 9 L23 17 L31 20 L23 23 L20 31 L17 23 L9 20 L17 17 Z' fill='#7FA8E8'/>"
+    "<circle cx='33' cy='9' r='3' fill='#7FA8E8'/>"
     "</svg>"
 )
 
@@ -159,24 +160,70 @@ def ecran_accueil():
         f"<div class='marque'>{LOGO_SVG}<span>{NOM_MARQUE}</span></div>",
         unsafe_allow_html=True,
     )
-    st.title("Mieux communiquer, mieux avancer.")
+
+    st.title("Mieux comprendre. Mieux décider. Mieux agir.")
+
     st.write(
-        "Des outils simples, faits pour votre travail, par des gens qui parlent "
-        "le langage des innovations les plus modernes, pour vous aider à y accéder aisément."
+        "Chaque jour, les responsables doivent traiter des informations, "
+        "suivre des dossiers, résoudre des difficultés et veiller à ce "
+        "que le travail avance."
     )
+
+    st.write(
+        "Pourtant, disposer d’informations ne suffit pas toujours pour "
+        "comprendre une situation, repérer ce qui bloque ou savoir "
+        "quelle action entreprendre."
+    )
+
+    st.markdown(
+        "**Better Mind vous aide à transformer les informations et les "
+        "situations de travail en constats clairs, en pistes d’action "
+        "et en un meilleur suivi.**"
+    )
+
+    st.divider()
+
+    st.subheader("De quoi avez-vous besoin ?")
+
+    with st.container(border=True):
+        st.markdown("**Comprendre une situation**")
+        st.caption(
+            "Faire ressortir les constats, les liens et les risques "
+            "utiles à la décision."
+        )
+
+    with st.container(border=True):
+        st.markdown("**S’assurer qu’un dossier est complet**")
+        st.caption(
+            "Identifier les éléments manquants et faciliter le suivi."
+        )
+
+    with st.container(border=True):
+        st.markdown("**Vérifier que le travail décidé est réalisé**")
+        st.caption(
+            "Suivre les actions attendues et vérifier leur réalisation."
+        )
+
     st.markdown("*Le vrai luxe, c’est un travail sans accroc.*")
-    st.button("Essayer", type="primary", use_container_width=True, on_click=aller, args=("retrouver",))
+
+    st.button(
+        "Essayer la démonstration de complétude",
+        type="primary",
+        use_container_width=True,
+        on_click=aller,
+        args=("retrouver",),
+    )
+
     st.caption(
         "Démonstration : dossiers fictifs, rien n’est conservé. "
         "Chaque ouverture présente une situation différente."
     )
+
     st.markdown(
         f"<p class='contact'>{NOM_MARQUE} · "
         f"<a href='mailto:{EMAIL_CONTACT}'>{EMAIL_CONTACT}</a></p>",
         unsafe_allow_html=True,
     )
-
-
 # ---------------------------------------------------------------------------
 # Écran 2 — Retrouver
 # ---------------------------------------------------------------------------
