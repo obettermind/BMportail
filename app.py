@@ -12,6 +12,8 @@ import streamlit as st
 import demo_portail as dp
 import messages_portail as mp
 
+import streamlit.components.v1 as components
+
 # Votre numéro WhatsApp au format international, sans + ni espaces (ex. "2126XXXXXXXX").
 # Tant qu'il est vide, le bouton « Essayer avec vos propres dossiers » n'est pas affiché.
 NUMERO_WHATSAPP = ""
@@ -62,6 +64,9 @@ def init():
 
 def aller(ecran, dossier=None):
     st.session_state.ecran = ecran
+    st.session_state.navigation_version = (
+        st.session_state.get("navigation_version", 0) + 1
+    )
     if dossier is not None:
         st.session_state.dossier = dossier
 
@@ -586,6 +591,41 @@ def ecran_conclusion():
 
 # ---------------------------------------------------------------------------
 
+
+def remonter_en_haut():
+    version = st.session_state.get("navigation_version", 0)
+
+    components.html(
+        f"""
+        <script>
+        const version = "{version}";
+        window.parent.document.documentElement.scrollTop = 0;
+        window.parent.document.body.scrollTop = 0;
+
+        const main = window.parent.document.querySelector(
+            '[data-testid="stMain"]'
+        );
+        if (main) {{
+            main.scrollTop = 0;
+        }}
+
+        window.parent.requestAnimationFrame(() => {{
+            window.parent.document.documentElement.scrollTop = 0;
+            if (main) {{
+                main.scrollTop = 0;
+            }}
+        }});
+        </script>
+        """,
+        height=0,
+        key=f"remonter_{version}",
+    )
+
+
+# ---------------------------------------------------------------------------
+
+
+
 init()
 {
     "accueil": ecran_accueil,
@@ -598,3 +638,19 @@ init()
 
 
 
+
+# ---------------------------------------------------------------------------
+
+
+
+init()
+remonter_en_haut()
+
+{
+    "accueil": ecran_accueil,
+    "retrouver": ecran_retrouver,
+    "fiche": ecran_fiche,
+    "actions": ecran_actions,
+    "bilan": ecran_bilan,
+    "conclusion": ecran_conclusion,
+}[st.session_state.ecran]()
