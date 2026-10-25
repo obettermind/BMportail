@@ -8,6 +8,7 @@ et disparaît à la fermeture de la page. Rien n'est écrit sur le disque.
 from urllib.parse import quote
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 import demo_portail as dp
 import messages_portail as mp
@@ -62,6 +63,9 @@ def init():
 
 def aller(ecran, dossier=None):
     st.session_state.ecran = ecran
+    # Le compteur change à chaque changement d'écran : il sert à relancer
+    # le script qui remonte la page en haut (voir remonter_en_haut).
+    st.session_state.scroll_n = st.session_state.get("scroll_n", 0) + 1
     if dossier is not None:
         st.session_state.dossier = dossier
 
@@ -72,7 +76,40 @@ def deposer(id_dos, code_obj, piece):
 
 
 def recommencer():
+    n = st.session_state.get("scroll_n", 0) + 1
     st.session_state.clear()  # init() recrée un jeu neuf, avec un nouveau tirage
+    st.session_state.scroll_n = n
+
+
+def remonter_en_haut():
+    """Remonte la page en haut à chaque changement d'écran.
+
+    Le compteur change le contenu du composant uniquement quand on
+    change d'écran : le script ne se relance donc pas quand on dépose
+    une pièce (même écran).
+    """
+    n = st.session_state.get("scroll_n", 0)
+    components.html(
+        f"""
+        <script>
+        // changement d'écran n°{n}
+        function haut() {{
+            const doc = window.parent.document;
+            [
+                doc.querySelector('[data-testid="stMain"]'),
+                doc.querySelector('section.main'),
+                doc.querySelector('[data-testid="stAppViewContainer"]'),
+                doc.scrollingElement,
+                doc.documentElement,
+                doc.body
+            ].forEach(c => c && c.scrollTo && c.scrollTo({{top: 0, left: 0, behavior: 'instant'}}));
+        }}
+        haut();
+        setTimeout(haut, 80);
+        </script>
+        """,
+        height=0,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -224,10 +261,11 @@ def ecran_accueil():
         f"<a href='mailto:{EMAIL_CONTACT}'>{EMAIL_CONTACT}</a></p>",
         unsafe_allow_html=True,
     )
+
+
 # ---------------------------------------------------------------------------
 # Écran 2 — Retrouver
 # ---------------------------------------------------------------------------
-
 def ecran_retrouver():
     st.markdown(
         "<p class='scene'>Un mardi, à dix heures, un client appelle "
@@ -274,7 +312,6 @@ def ecran_retrouver():
 # ---------------------------------------------------------------------------
 # Écrans 3 et 4 — Fiche dossier, dépôt d'une pièce, relance
 # ---------------------------------------------------------------------------
-
 def ecran_fiche():
     suivi = st.session_state.suivi
     id_dos = st.session_state.dossier
@@ -346,11 +383,9 @@ def ecran_fiche():
     )
 
 
-
 # ---------------------------------------------------------------------------
-
+# Écran — Actions et contact client
 # ---------------------------------------------------------------------------
-
 def ecran_actions():
     suivi = st.session_state.suivi
     id_dos = st.session_state.dossier
@@ -436,8 +471,6 @@ def ecran_actions():
     )
 
 
-
-
 # ---------------------------------------------------------------------------
 # Écran 5 — Bilan par WhatsApp, aperçu du suivi client, sortie vers WhatsApp
 # ---------------------------------------------------------------------------
@@ -515,7 +548,6 @@ def ecran_bilan():
             use_container_width=True,
         )
 
-
     st.divider()
     st.button(
         "Terminer la démonstration →",
@@ -533,10 +565,9 @@ def ecran_bilan():
     )
 
 
-
 # ---------------------------------------------------------------------------
-
-
+# Écran final — Conclusion
+# ---------------------------------------------------------------------------
 def ecran_conclusion():
     st.subheader("Ce que cette démonstration vous apporte")
 
@@ -585,8 +616,10 @@ def ecran_conclusion():
 
 
 # ---------------------------------------------------------------------------
-
+# Point d'entrée
+# ---------------------------------------------------------------------------
 init()
+remonter_en_haut()
 {
     "accueil": ecran_accueil,
     "retrouver": ecran_retrouver,
@@ -595,6 +628,3 @@ init()
     "bilan": ecran_bilan,
     "conclusion": ecran_conclusion,
 }[st.session_state.ecran]()
-
-
-
